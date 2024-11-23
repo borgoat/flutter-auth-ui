@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phone_form_field/phone_form_field.dart';
 import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_auth_ui/src/utils/supa_auth_action.dart';
@@ -28,7 +29,7 @@ class SupaPhoneAuth extends StatefulWidget {
 
 class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
   final _formKey = GlobalKey<FormState>();
-  final _phone = TextEditingController();
+  final _phone = PhoneController();
   final _password = TextEditingController();
 
   @override
@@ -53,11 +54,11 @@ class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
+            PhoneFormField(
               autofillHints: const [AutofillHints.telephoneNumber],
               textInputAction: TextInputAction.next,
               validator: (value) {
-                if (value == null || value.isEmpty) {
+                if (value == null || !value.isValid()) {
                   return localization.validPhoneNumberError;
                 }
                 return null;
@@ -98,7 +99,7 @@ class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
                 try {
                   if (isSigningIn) {
                     final response = await supabase.auth.signInWithPassword(
-                      phone: _phone.text,
+                      phone: _phone.value.international,
                       password: _password.text,
                     );
                     widget.onSuccess(response);
@@ -108,13 +109,13 @@ class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
                     if (user?.isAnonymous == true) {
                       await supabase.auth.updateUser(
                         UserAttributes(
-                          phone: _phone.text,
+                          phone: _phone.value.international,
                           password: _password.text,
                         ),
                       );
                     } else {
                       response = await supabase.auth.signUp(
-                        phone: _phone.text,
+                        phone: _phone.value.international,
                         password: _password.text,
                       );
                     }
@@ -136,7 +137,7 @@ class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
                   }
                 }
                 setState(() {
-                  _phone.text = '';
+                  _phone.value = _phone.initialValue;
                   _password.text = '';
                 });
               },
