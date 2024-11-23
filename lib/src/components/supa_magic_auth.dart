@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/src/localizations/supa_magic_auth_localization.dart';
+import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -19,15 +19,11 @@ class SupaMagicAuth extends StatefulWidget {
   /// Method to be called when the auth action threw an excepction
   final void Function(Object error)? onError;
 
-  /// Localization for the form
-  final SupaMagicAuthLocalization localization;
-
   const SupaMagicAuth({
     super.key,
     this.redirectUrl,
     required this.onSuccess,
     this.onError,
-    this.localization = const SupaMagicAuthLocalization(),
   });
 
   @override
@@ -62,7 +58,7 @@ class _SupaMagicAuthState extends State<SupaMagicAuth> {
 
   @override
   Widget build(BuildContext context) {
-    final localization = widget.localization;
+    final localization = SupabaseAuthUILocalizations.of(context);
     return Form(
       key: _formKey,
       child: Column(
@@ -96,10 +92,7 @@ class _SupaMagicAuthState extends State<SupaMagicAuth> {
                       strokeWidth: 1.5,
                     ),
                   )
-                : Text(
-                    localization.continueWithMagicLink,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                : Text(localization.continueWithMagicLink),
             onPressed: () async {
               if (!_formKey.currentState!.validate()) {
                 return;

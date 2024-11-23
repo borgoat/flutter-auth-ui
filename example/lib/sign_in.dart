@@ -7,6 +7,7 @@ import 'constants.dart';
 
 class SignUp extends StatelessWidget {
   const SignUp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     void navigateHome(AuthResponse response) {
@@ -109,11 +110,6 @@ class SignUp extends StatelessWidget {
                       onSignUpComplete: navigateHome,
                       prefixIconEmail: null,
                       prefixIconPassword: null,
-                      localization: const SupaEmailAuthLocalization(
-                          enterEmail: "email",
-                          enterPassword: "password",
-                          dontHaveAccount: "sign up",
-                          forgotPassword: "forgot password"),
                       metadataFields: [
                         MetaDataField(
                           prefixIcon: const Icon(Icons.person),

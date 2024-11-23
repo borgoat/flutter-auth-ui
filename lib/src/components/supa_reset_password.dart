@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/src/localizations/supa_reset_password_localization.dart';
+import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,15 +14,11 @@ class SupaResetPassword extends StatefulWidget {
   /// Method to be called when the auth action threw an excepction
   final void Function(Object error)? onError;
 
-  /// Localization for the form
-  final SupaResetPasswordLocalization localization;
-
   const SupaResetPassword({
     super.key,
     this.accessToken,
     required this.onSuccess,
     this.onError,
-    this.localization = const SupaResetPasswordLocalization(),
   });
 
   @override
@@ -41,7 +37,7 @@ class _SupaResetPasswordState extends State<SupaResetPassword> {
 
   @override
   Widget build(BuildContext context) {
-    final localization = widget.localization;
+    final localization = SupabaseAuthUILocalizations.of(context);
     return Form(
       key: _formKey,
       child: Column(
@@ -63,10 +59,7 @@ class _SupaResetPasswordState extends State<SupaResetPassword> {
           ),
           spacer(16),
           ElevatedButton(
-            child: Text(
-              localization.updatePassword,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+            child: Text(localization.updatePassword),
             onPressed: () async {
               if (!_formKey.currentState!.validate()) {
                 return;

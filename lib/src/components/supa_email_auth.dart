@@ -1,6 +1,6 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/src/localizations/supa_email_auth_localization.dart';
+import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -204,9 +204,6 @@ class SupaEmailAuth extends StatefulWidget {
   /// Additional properties for user_metadata on signup
   final Map<String, dynamic>? extraMetadata;
 
-  /// Localization for the form
-  final SupaEmailAuthLocalization localization;
-
   /// Whether the form should display sign-in or sign-up initially
   final bool isInitiallySigningIn;
 
@@ -237,7 +234,6 @@ class SupaEmailAuth extends StatefulWidget {
     this.onToggleRecoverPassword,
     this.metadataFields,
     this.extraMetadata,
-    this.localization = const SupaEmailAuthLocalization(),
     this.isInitiallySigningIn = true,
     this.prefixIconEmail = const Icon(Icons.email),
     this.prefixIconPassword = const Icon(Icons.lock),
@@ -310,7 +306,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
 
   @override
   Widget build(BuildContext context) {
-    final localization = widget.localization;
+    final localization = SupabaseAuthUILocalizations.of(context);
     return AutofillGroup(
       child: Form(
         key: _formKey,
@@ -341,7 +337,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
               controller: _emailController,
               onFieldSubmitted: (_) {
                 if (_isRecoveringPassword) {
-                  _passwordRecovery();
+                  _passwordRecovery(localization);
                 }
               },
             ),
@@ -370,7 +366,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
                 controller: _passwordController,
                 onFieldSubmitted: (_) {
                   if (widget.metadataFields == null || _isSigningIn) {
-                    _signInSignUp();
+                    _signInSignUp(localization);
                   }
                 },
               ),
@@ -473,7 +469,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
                                     widget.metadataFields!.last) {
                                   FocusScope.of(context).nextFocus();
                                 } else {
-                                  _signInSignUp();
+                                  _signInSignUp(localization);
                                 }
                               },
                             ),
@@ -481,7 +477,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
                         ])
                     .expand((element) => element),
               ElevatedButton(
-                onPressed: _signInSignUp,
+                onPressed: () => _signInSignUp(localization),
                 child: (_isLoading)
                     ? SizedBox(
                         height: 16,
@@ -526,7 +522,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
               spacer(16),
               if (!_isEnteringOtp) ...[
                 ElevatedButton(
-                  onPressed: _passwordRecovery,
+                  onPressed: () => _passwordRecovery(localization),
                   child: Text(localization.sendPasswordReset),
                 ),
               ] else ...[
@@ -573,7 +569,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
                 ),
                 spacer(16),
                 ElevatedButton(
-                  onPressed: _verifyOtpAndResetPassword,
+                  onPressed: () => _verifyOtpAndResetPassword(localization),
                   child: Text(localization.changePassword),
                 ),
               ],
@@ -594,7 +590,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
     );
   }
 
-  void _signInSignUp() async {
+  void _signInSignUp(SupabaseAuthUILocalizations localization) async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -641,8 +637,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
       _emailFocusNode.requestFocus();
     } catch (error) {
       if (widget.onError == null && mounted) {
-        context.showErrorSnackBar(
-            '${widget.localization.unexpectedError}: $error');
+        context.showErrorSnackBar('${localization.unexpectedError}: $error');
       } else {
         widget.onError?.call(error);
       }
@@ -655,7 +650,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
     }
   }
 
-  void _passwordRecovery() async {
+  void _passwordRecovery(SupabaseAuthUILocalizations localization) async {
     try {
       if (!_formKey.currentState!.validate()) {
         // Focus on email field if validation fails
@@ -674,7 +669,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
           redirectTo: widget.resetPasswordRedirectTo ?? widget.redirectTo,
         );
         if (!mounted) return;
-        context.showSnackBar(widget.localization.passwordResetSent);
+        context.showSnackBar(localization.passwordResetSent);
         setState(() {
           _isEnteringOtp = true;
         });
@@ -685,7 +680,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
         );
         widget.onPasswordResetEmailSent?.call();
         if (!mounted) return;
-        context.showSnackBar(widget.localization.passwordResetSent);
+        context.showSnackBar(localization.passwordResetSent);
         setState(() {
           _isRecoveringPassword = false;
         });
@@ -703,7 +698,8 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
     }
   }
 
-  void _verifyOtpAndResetPassword() async {
+  void _verifyOtpAndResetPassword(
+      SupabaseAuthUILocalizations localization) async {
     try {
       if (!_formKey.currentState!.validate()) {
         return;
@@ -722,11 +718,11 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
       } on AuthException catch (error) {
         if (error.code == 'otp_expired') {
           if (!mounted) return;
-          context.showErrorSnackBar(widget.localization.otpCodeError);
+          context.showErrorSnackBar(localization.otpCodeError);
           return;
         } else if (error.code == 'otp_disabled') {
           if (!mounted) return;
-          context.showErrorSnackBar(widget.localization.otpDisabledError);
+          context.showErrorSnackBar(localization.otpDisabledError);
           return;
         }
         rethrow;
@@ -737,7 +733,7 @@ class _SupaEmailAuthState extends State<SupaEmailAuth> {
       );
 
       if (!mounted) return;
-      context.showSnackBar(widget.localization.passwordChangedSuccess);
+      context.showSnackBar(localization.passwordChangedSuccess);
       setState(() {
         _isRecoveringPassword = false;
         _isEnteringOtp = false;

@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:supabase_auth_ui/src/localizations/supa_socials_auth_localization.dart';
+import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -122,11 +122,27 @@ class SupaSocialsAuth extends StatefulWidget {
   /// Parameters to include in provider authorization request (ex. {'prompt': 'consent'})
   final Map<OAuthProvider, Map<String, String>>? queryParams;
 
-  /// Localization for the form
-  final SupaSocialsAuthLocalization localization;
-
   /// Custom LaunchMode support
   final LaunchMode authScreenLaunchMode;
+
+  /// Overrides the name of the OAuth provider shown on the sign-in button.
+  ///
+  /// Defaults to `Continue with [ProviderName]`
+  ///
+  /// ```dart
+  /// SupaSocialsAuth(
+  ///   socialProviders: const [OAuthProvider.azure],
+  ///   localization: const SupaSocialsAuthLocalization(
+  ///     oAuthButtonLabels: {
+  ///       OAuthProvider.azure: 'Microsoft (Azure)'
+  ///     },
+  ///   ),
+  ///   onSuccess: (session) {
+  ///     // sHandle success
+  ///   },
+  /// ),
+  /// ```
+  final Map<OAuthProvider, String> oAuthButtonLabels;
 
   const SupaSocialsAuth({
     super.key,
@@ -141,8 +157,8 @@ class SupaSocialsAuth extends StatefulWidget {
     this.showSuccessSnackBar = true,
     this.scopes,
     this.queryParams,
-    this.localization = const SupaSocialsAuthLocalization(),
     this.authScreenLaunchMode = LaunchMode.platformDefault,
+    this.oAuthButtonLabels = const {},
   });
 
   @override
@@ -151,7 +167,6 @@ class SupaSocialsAuth extends StatefulWidget {
 
 class _SupaSocialsAuthState extends State<SupaSocialsAuth> {
   late final StreamSubscription<AuthState> _gotrueSubscription;
-  late final SupaSocialsAuthLocalization localization;
 
   /// Performs Google sign in on Android and iOS
   Future<AuthResponse> _nativeGoogleSignIn({
@@ -213,14 +228,14 @@ class _SupaSocialsAuthState extends State<SupaSocialsAuth> {
   @override
   void initState() {
     super.initState();
-    localization = widget.localization;
     _gotrueSubscription =
         Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final session = data.session;
       if (session != null && mounted) {
         widget.onSuccess.call(session);
         if (widget.showSuccessSnackBar) {
-          context.showSnackBar(localization.successSignInMessage);
+          context.showSnackBar(
+              SupabaseAuthUILocalizations.of(context).successSignInMessage);
         }
       }
     });
@@ -234,6 +249,7 @@ class _SupaSocialsAuthState extends State<SupaSocialsAuth> {
 
   @override
   Widget build(BuildContext context) {
+    final localization = SupabaseAuthUILocalizations.of(context);
     final providers = widget.socialProviders;
     final googleAuthConfig = widget.nativeGoogleAuthConfig;
     final isNativeAppleAuthEnabled = widget.enableNativeAppleAuth;
@@ -400,7 +416,7 @@ class _SupaSocialsAuthState extends State<SupaSocialsAuth> {
                   style: authButtonStyle,
                   onPressed: onAuthButtonPressed,
                   label: Text(
-                    localization.oAuthButtonLabels[socialProvider] ??
+                    widget.oAuthButtonLabels[socialProvider] ??
                         socialProvider.labelText,
                   ),
                 ),

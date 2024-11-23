@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_auth_ui/src/localizations/supa_verify_phone_localization.dart';
+import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,14 +11,10 @@ class SupaVerifyPhone extends StatefulWidget {
   /// Method to be called when the auth action threw an excepction
   final void Function(Object error)? onError;
 
-  /// Localization for the form
-  final SupaVerifyPhoneLocalization localization;
-
   const SupaVerifyPhone({
     super.key,
     required this.onSuccess,
     this.onError,
-    this.localization = const SupaVerifyPhoneLocalization(),
   });
 
   @override
@@ -43,7 +39,7 @@ class _SupaVerifyPhoneState extends State<SupaVerifyPhone> {
 
   @override
   Widget build(BuildContext context) {
-    final localization = widget.localization;
+    final localization = SupabaseAuthUILocalizations.of(context);
     var args = ModalRoute.of(context)?.settings.arguments;
     if (args != null) data = args as Map;
     return Form(
@@ -66,10 +62,7 @@ class _SupaVerifyPhoneState extends State<SupaVerifyPhone> {
           ),
           spacer(16),
           ElevatedButton(
-            child: Text(
-              localization.verifyPhone,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+            child: Text(localization.verifyPhone),
             onPressed: () async {
               if (!_formKey.currentState!.validate()) {
                 return;

@@ -11,17 +11,26 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  supabase_flutter: ^2.5.6
-  email_validator: ^2.0.1
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
   font_awesome_flutter: ^10.6.0
+  supabase_flutter: ^2.5.6
+  email_validator: ^3.0.0
+  phone_form_field: ^10.0.1
+
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.0
+
   crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  build_runner: ^2.4.13
+
+  flutter_lints: ^5.0.0
 
 flutter:
   assets:

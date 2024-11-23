@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_auth_ui/localization/intl/messages.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
-import 'package:supabase_auth_ui/supabase_auth_ui.dart';
+import 'package:supabase_auth_ui/src/utils/supa_auth_action.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// UI component to create a phone + password signin/ signup form
 class SupaPhoneAuth extends StatefulWidget {
@@ -13,15 +15,11 @@ class SupaPhoneAuth extends StatefulWidget {
   /// Method to be called when the auth action threw an excepction
   final void Function(Object error)? onError;
 
-  /// Localization for the form
-  final SupaPhoneAuthLocalization localization;
-
   const SupaPhoneAuth({
     super.key,
     required this.authAction,
     required this.onSuccess,
     this.onError,
-    this.localization = const SupaPhoneAuthLocalization(),
   });
 
   @override
@@ -47,7 +45,7 @@ class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
 
   @override
   Widget build(BuildContext context) {
-    final localization = widget.localization;
+    final localization = SupabaseAuthUILocalizations.of(context);
     final isSigningIn = widget.authAction == SupaAuthAction.signIn;
     return AutofillGroup(
       child: Form(
@@ -91,10 +89,8 @@ class _SupaPhoneAuthState extends State<SupaPhoneAuth> {
             ),
             spacer(16),
             ElevatedButton(
-              child: Text(
-                isSigningIn ? localization.signIn : localization.signUp,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              child:
+                  Text(isSigningIn ? localization.signIn : localization.signUp),
               onPressed: () async {
                 if (!_formKey.currentState!.validate()) {
                   return;

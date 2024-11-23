@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
 import './home.dart';
-import './sign_in.dart';
 import './magic_link.dart';
+import './sign_in.dart';
 import './update_password.dart';
-import 'phone_sign_in.dart';
 import './verify_phone.dart';
+import 'phone_sign_in.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +29,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
+      localizationsDelegates: const [SupabaseAuthUILocalizations.delegate],
       theme: ThemeData(
         inputDecorationTheme: const InputDecorationTheme(
           border: OutlineInputBorder(),
