@@ -32,5 +32,7 @@ migrate_working_dir/
 .packages
 build/
 
+# TODO: I'm probably an idiot, but I can't get Flutter to generate these files if I use the git dependency override,
+#       if moving to dart.pub, these should be removed.
 # L10n files
-lib/localization/intl
+#lib/localization/intl
