@@ -147,6 +147,12 @@ abstract class SupabaseAuthUILocalizations {
   /// **'Don\'t have an account? Sign up'**
   String get dontHaveAccount;
 
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
   /// No description provided for @enterCodeSent.
   ///
   /// In en, this message translates to:
@@ -231,17 +237,29 @@ abstract class SupabaseAuthUILocalizations {
   /// **'Password reset email has been sent'**
   String get passwordResetSent;
 
+  /// No description provided for @phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get phone;
+
   /// No description provided for @requiredFieldError.
   ///
   /// In en, this message translates to:
   /// **'This field is required'**
   String get requiredFieldError;
 
-  /// No description provided for @sendPasswordReset.
+  /// No description provided for @sendPasswordResetEmail.
   ///
   /// In en, this message translates to:
   /// **'Send password reset email'**
-  String get sendPasswordReset;
+  String get sendPasswordResetEmail;
+
+  /// No description provided for @sendPasswordResetPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Send password reset code'**
+  String get sendPasswordResetPhone;
 
   /// No description provided for @signIn.
   ///

@@ -1,13 +1,11 @@
-import 'package:example/phone_sign_up.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_auth_ui/supabase_auth_ui.dart';
 
-import './home.dart';
-import './magic_link.dart';
-import './sign_in.dart';
-import './update_password.dart';
-import './verify_phone.dart';
-import 'phone_sign_in.dart';
+import 'home.dart';
+import 'magic_link.dart';
+import 'sign_in.dart';
+import 'update_password.dart';
+import 'verify_phone.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,8 +38,6 @@ class MyApp extends StatelessWidget {
         '/': (context) => const SignUp(),
         '/magic_link': (context) => const MagicLink(),
         '/update_password': (context) => const UpdatePassword(),
-        '/phone_sign_in': (context) => const PhoneSignIn(),
-        '/phone_sign_up': (context) => const PhoneSignUp(),
         '/verify_phone': (context) => const VerifyPhone(),
         '/home': (context) => const Home(),
       },

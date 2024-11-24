@@ -28,6 +28,9 @@ class SupabaseAuthUILocalizationsDe extends SupabaseAuthUILocalizations {
   String get dontHaveAccount => 'Haben Sie kein Konto? Registrieren';
 
   @override
+  String get email => 'E-Mail';
+
+  @override
   String get enterCodeSent => 'Geben Sie den gesendeten Code ein';
 
   @override
@@ -72,10 +75,16 @@ class SupabaseAuthUILocalizationsDe extends SupabaseAuthUILocalizations {
   String get passwordResetSent => 'Passwort-Reset-E-Mail wurde gesendet';
 
   @override
+  String get phone => 'Telefon';
+
+  @override
   String get requiredFieldError => 'Dieses Feld ist erforderlich';
 
   @override
-  String get sendPasswordReset => 'Passwort-Reset-E-Mail senden';
+  String get sendPasswordResetEmail => 'Passwort-Reset-E-Mail senden';
+
+  @override
+  String get sendPasswordResetPhone => 'Passwort-Reset-Code senden';
 
   @override
   String get signIn => 'Anmelden';

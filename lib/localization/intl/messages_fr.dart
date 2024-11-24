@@ -28,6 +28,9 @@ class SupabaseAuthUILocalizationsFr extends SupabaseAuthUILocalizations {
   String get dontHaveAccount => 'Vous n\'avez pas de compte? Inscrivez-vous';
 
   @override
+  String get email => 'Email';
+
+  @override
   String get enterCodeSent => 'Entrez le code envoyé';
 
   @override
@@ -73,11 +76,16 @@ class SupabaseAuthUILocalizationsFr extends SupabaseAuthUILocalizations {
       'Email de réinitialisation du mot de passe envoyé';
 
   @override
+  String get phone => 'Téléphone';
+
+  @override
   String get requiredFieldError => 'Ce champ est requis';
 
   @override
-  String get sendPasswordReset =>
-      'Envoyer l\'email de réinitialisation du mot de passe';
+  String get sendPasswordResetEmail => 'Réinitialiser par email';
+
+  @override
+  String get sendPasswordResetPhone => 'Réinitialiser par code';
 
   @override
   String get signIn => 'Se connecter';

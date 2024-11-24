@@ -50,7 +50,7 @@ class SignUp extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(24.0),
         children: [
-          SupaEmailAuth(
+          SupaPasswordAuth(
             redirectTo: kIsWeb ? null : 'io.supabase.flutter://',
             onSignInComplete: navigateHome,
             onSignUpComplete: navigateHome,
@@ -104,7 +104,7 @@ class SignUp extends StatelessWidget {
                 padding: const EdgeInsets.all(30),
                 child: Theme(
                   data: darkModeThemeData,
-                  child: SupaEmailAuth(
+                  child: SupaPasswordAuth(
                       redirectTo: kIsWeb ? null : 'io.supabase.flutter://',
                       onSignInComplete: navigateHome,
                       onSignUpComplete: navigateHome,
