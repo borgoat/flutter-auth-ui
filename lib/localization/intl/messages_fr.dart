@@ -72,8 +72,12 @@ class SupabaseAuthUILocalizationsFr extends SupabaseAuthUILocalizations {
       'Veuillez entrer un mot de passe d\'au moins 6 caractères';
 
   @override
-  String get passwordResetSent =>
+  String get passwordResetSentEmail =>
       'Email de réinitialisation du mot de passe envoyé';
+
+  @override
+  String get passwordResetSentPhone =>
+      'Code de réinitialisation du mot de passe envoyé';
 
   @override
   String get phone => 'Téléphone';

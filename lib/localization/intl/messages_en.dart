@@ -71,7 +71,10 @@ class SupabaseAuthUILocalizationsEn extends SupabaseAuthUILocalizations {
       'Please enter a password that is at least 6 characters long';
 
   @override
-  String get passwordResetSent => 'Password reset email has been sent';
+  String get passwordResetSentEmail => 'Password reset email has been sent';
+
+  @override
+  String get passwordResetSentPhone => 'Password reset code has been sent';
 
   @override
   String get phone => 'Phone';

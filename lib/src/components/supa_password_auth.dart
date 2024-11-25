@@ -117,22 +117,38 @@ class SupaPasswordAuth extends StatefulWidget {
 }
 
 class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _phoneController = PhoneController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  /// The selected identity - late because it depends on the widget configuration
   late SupaPasswordIdentity _selectedIdentity;
-  late bool _isSigningIn;
-  late final Map<String, MetadataController> _metadataControllers;
 
+  /// True when the user is signing in, false when signing up;
+  /// late because it depends on the widget configuration
+  late bool _isSigningIn;
+
+  /// True when waiting for a response from the server
   bool _isLoading = false;
 
   /// The user has pressed forgot password button
   bool _isRecoveringPassword = false;
 
+  /// Whether the user is entering OTP code
+  bool _isEnteringOtp = false;
+
+  final _formKey = GlobalKey<FormState>();
+
   /// Focus node for the identity field - only one is shown at a time anyway
-  final FocusNode _identityFocusNode = FocusNode();
+  final _identityFocusNode = FocusNode();
+
+  /// Controller for email input field
+  final _emailController = TextEditingController();
+
+  /// Controller for phone input field
+  final _phoneController = PhoneController();
+
+  /// Controller for password input field
+  final _passwordController = TextEditingController();
+
+  /// Controller for confirm password input field
+  final _confirmPasswordController = TextEditingController();
 
   /// Controller for OTP input field
   final _otpController = TextEditingController();
@@ -143,8 +159,8 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   /// Controller for confirm new password input field
   final _confirmNewPasswordController = TextEditingController();
 
-  /// Whether the user is entering OTP code
-  bool _isEnteringOtp = false;
+  /// Optional additional controllers for metadata fields
+  late final Map<String, MetadataController> _metadataControllers;
 
   @override
   void initState() {
@@ -440,14 +456,14 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
             // Show the password recovery form if the user is recovering their password.
             if (_isSigningIn && _isRecoveringPassword) ...[
               spacer(16),
-              if (!_isEnteringOtp) ...[
+              if (!_isEnteringOtp)
                 ElevatedButton(
                   onPressed: () => _passwordRecovery(localization),
                   child: _selectedIdentity == SupaPasswordIdentity.email
                       ? Text(localization.sendPasswordResetEmail)
                       : Text(localization.sendPasswordResetPhone),
-                ),
-              ] else ...[
+                )
+              else ...[
                 TextFormField(
                   controller: _otpController,
                   decoration: InputDecoration(
@@ -550,6 +566,10 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
             emailRedirectTo: widget.redirectTo,
             data: _resolveData(),
           );
+
+          // TODO: if verification is required, explain to the user
+          //       that they can either tap on the link in the email or
+          //       enter the OTP code sent to their email/phone.
         }
         widget.onSignUpComplete.call(response);
       }
@@ -597,15 +617,16 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         );
         widget.onPasswordResetEmailSent?.call();
         if (!mounted) return;
-        context.showSnackBar(localization.passwordResetSent);
+        context.showSnackBar(localization.passwordResetSentEmail);
       } else {
         await supabase.auth.signInWithOtp(
           phone: _resolvePhone(),
         );
         if (!mounted) return;
-        // TODO: custom message for phone
-        context.showSnackBar(localization.passwordResetSent);
+        context.showSnackBar(localization.passwordResetSentPhone);
       }
+
+      // Always show the OTP field after sending the email or OTP code
       setState(() {
         _isEnteringOtp = true;
       });
@@ -622,6 +643,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     }
   }
 
+  /// First verify the OTP code and then reset the user's password.
   void _verifyOtpAndResetPassword(
       SupabaseAuthUILocalizations localization) async {
     try {
@@ -631,27 +653,9 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         _isLoading = true;
       });
 
-      try {
-        await supabase.auth.verifyOTP(
-          type: _resolveOtpType(),
-          token: _resolveOtp(),
-          email: _resolveEmail(),
-          phone: _resolvePhone(),
-        );
-      } on AuthException catch (error) {
-        if (error.code == 'otp_expired') {
-          if (!mounted) return;
-          context.showErrorSnackBar(localization.otpCodeError);
+      final response = await _verifyOtp(localization);
 
-          return;
-        } else if (error.code == 'otp_disabled') {
-          if (!mounted) return;
-          context.showErrorSnackBar(localization.otpDisabledError);
-
-          return;
-        }
-        rethrow;
-      }
+      if (response == null) return;
 
       await supabase.auth.updateUser(
         UserAttributes(password: _resolveNewPassword()),
@@ -664,8 +668,6 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         _isRecoveringPassword = false;
         _isEnteringOtp = false;
       });
-    } on AuthException catch (error) {
-      widget.onError?.call(error);
     } catch (error) {
       widget.onError?.call(error);
     } finally {
@@ -674,6 +676,32 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// Verify the OTP code sent to the user's email or phone,
+  /// depending on the selected identity.
+  Future<AuthResponse?> _verifyOtp(
+      SupabaseAuthUILocalizations localization) async {
+    try {
+      return supabase.auth.verifyOTP(
+        // TODO: type can be other values depending on the use case...
+        type: _resolveOtpType(),
+        token: _resolveOtp(),
+        email: _resolveEmail(),
+        phone: _resolvePhone(),
+      );
+    } on AuthException catch (error) {
+      if (error.code == 'otp_expired') {
+        if (!mounted) return null;
+        context.showErrorSnackBar(localization.otpCodeError);
+        return null;
+      } else if (error.code == 'otp_disabled') {
+        if (!mounted) return null;
+        context.showErrorSnackBar(localization.otpDisabledError);
+        return null;
+      }
+      rethrow;
     }
   }
 

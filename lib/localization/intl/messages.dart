@@ -231,11 +231,17 @@ abstract class SupabaseAuthUILocalizations {
   /// **'Please enter a password that is at least 6 characters long'**
   String get passwordLengthError;
 
-  /// No description provided for @passwordResetSent.
+  /// No description provided for @passwordResetSentEmail.
   ///
   /// In en, this message translates to:
   /// **'Password reset email has been sent'**
-  String get passwordResetSent;
+  String get passwordResetSentEmail;
+
+  /// No description provided for @passwordResetSentPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset code has been sent'**
+  String get passwordResetSentPhone;
 
   /// No description provided for @phone.
   ///
