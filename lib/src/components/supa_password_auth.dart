@@ -117,6 +117,10 @@ class SupaPasswordAuth extends StatefulWidget {
 }
 
 class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
+  /// The localization instance
+  SupabaseAuthUILocalizations get _localization =>
+      SupabaseAuthUILocalizations.of(context);
+
   /// The selected identity - late because it depends on the widget configuration
   late SupaPasswordIdentity _selectedIdentity;
 
@@ -132,6 +136,22 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
 
   /// Whether the user is entering OTP code
   bool _isEnteringOtp = false;
+
+  /// Whether it is possible to switch between multiple identities to sign in
+  bool get _multipleIdentitiesAvailable => widget.identities.length > 1;
+
+  /// Whether the user is using email to sign in instead of phone
+  bool get _isUsingEmail => _selectedIdentity == SupaPasswordIdentity.email;
+
+  /// Whether the user is using phone to sign in instead of email
+  bool get _isUsingPhone => _selectedIdentity == SupaPasswordIdentity.phone;
+
+  /// Whether the user is signing up
+  bool get _isSigningUp => !_isSigningIn;
+
+  /// Whether there are metadata fields to show
+  bool get _thereAreMetadataFields =>
+      widget.metadataFields != null && widget.metadataFields!.isNotEmpty;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -194,7 +214,6 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
 
   @override
   Widget build(BuildContext context) {
-    final localization = SupabaseAuthUILocalizations.of(context);
     return AutofillGroup(
       child: Form(
         key: _formKey,
@@ -204,323 +223,64 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           children: [
             // If the user can sign in with both email and phone,
             // show a segment control to switch between the two.
-            if (widget.identities.length > 1) ...[
-              SegmentedButton<SupaPasswordIdentity>(
-                segments: [
-                  for (final identity in widget.identities)
-                    ButtonSegment(
-                      value: identity,
-                      label: identity == SupaPasswordIdentity.email
-                          ? Text(localization.email)
-                          : Text(localization.phone),
-                    ),
-                ],
-                selected: {_selectedIdentity},
-                onSelectionChanged: (identities) {
-                  setState(() {
-                    _selectedIdentity = identities.first;
-                    _isEnteringOtp = false;
-                    _isRecoveringPassword = false;
-                  });
-                },
-              ),
+            if (_multipleIdentitiesAvailable) ...[
+              _identitySwitchButton(),
               spacer(16),
             ],
 
             // Show the email or phone field based on the selected identity.
-            if (_selectedIdentity == SupaPasswordIdentity.email)
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                autofocus: true,
-                focusNode: _identityFocusNode,
-                enabled: !_isEnteringOtp,
-                textInputAction: _isRecoveringPassword
-                    ? TextInputAction.done
-                    : TextInputAction.next,
-                validator: (value) {
-                  if (value == null ||
-                      value.isEmpty ||
-                      !EmailValidator.validate(_emailController.text)) {
-                    return localization.validEmailError;
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  prefixIcon: widget.prefixIconEmail,
-                  label: Text(localization.enterEmail),
-                ),
-                onFieldSubmitted: (_) {
-                  if (_isRecoveringPassword) {
-                    _passwordRecovery(localization);
-                  }
-                },
-              )
-            else
-              PhoneFormField(
-                controller: _phoneController,
-                autofillHints: const [AutofillHints.telephoneNumber],
-                autofocus: true,
-                focusNode: _identityFocusNode,
-                enabled: !_isEnteringOtp,
-                textInputAction: widget.metadataFields != null && !_isSigningIn
-                    ? TextInputAction.next
-                    : TextInputAction.done,
-                validator: (value) {
-                  if (value == null || !value.isValid()) {
-                    return localization.validPhoneNumberError;
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  label: Text(localization.enterPhoneNumber),
-                ),
-              ),
+            if (_isUsingEmail) _emailFormField() else _phoneFormField(),
 
             // Show the password fields if the user is signing in or signing up.
             if (!_isRecoveringPassword) ...[
               spacer(16),
-              TextFormField(
-                autofillHints: _isSigningIn
-                    ? [AutofillHints.password]
-                    : [AutofillHints.newPassword],
-                textInputAction: widget.metadataFields != null && !_isSigningIn
-                    ? TextInputAction.next
-                    : TextInputAction.done,
-                validator: widget.passwordValidator ??
-                    (value) {
-                      if (value == null || value.isEmpty || value.length < 6) {
-                        return localization.passwordLengthError;
-                      }
-                      return null;
-                    },
-                decoration: InputDecoration(
-                  prefixIcon: widget.prefixIconPassword,
-                  label: Text(localization.enterPassword),
-                ),
-                obscureText: true,
-                controller: _passwordController,
-                onFieldSubmitted: (_) {
-                  if (widget.metadataFields == null || _isSigningIn) {
-                    _signInSignUp(localization);
-                  }
-                },
-              ),
-              if (widget.showConfirmPasswordField && !_isSigningIn) ...[
+              _passwordFormField(),
+              if (widget.showConfirmPasswordField && _isSigningUp) ...[
                 spacer(16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  decoration: InputDecoration(
-                    prefixIcon: widget.prefixIconPassword,
-                    label: Text(localization.confirmPassword),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return localization.confirmPasswordError;
-                    }
-                    return null;
-                  },
-                ),
+                _confirmPasswordFormField(),
               ],
               spacer(16),
-              if (widget.metadataFields != null && !_isSigningIn)
-                ...widget.metadataFields!
-                    .map((metadataField) => [
-                          // Render a Checkbox that displays an error message
-                          // beneath it if the field is required and the user
-                          // hasn't checked it when submitting the form.
-                          if (metadataField is BooleanMetaDataField)
-                            FormField<bool>(
-                              validator: metadataField.isRequired
-                                  ? (bool? value) {
-                                      if (value != true) {
-                                        return localization.requiredFieldError;
-                                      }
-                                      return null;
-                                    }
-                                  : null,
-                              builder: (FormFieldState<bool> field) {
-                                final theme = Theme.of(context);
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    CheckboxListTile(
-                                      title:
-                                          metadataField.getLabelWidget(context),
-                                      value: _metadataControllers[
-                                          metadataField.key] as bool,
-                                      onChanged: (bool? value) {
-                                        setState(() {
-                                          _metadataControllers[metadataField
-                                              .key] = value ?? false;
-                                        });
-                                        field.didChange(value);
-                                      },
-                                      checkboxSemanticLabel:
-                                          metadataField.checkboxSemanticLabel,
-                                      controlAffinity:
-                                          metadataField.checkboxPosition,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 4.0),
-                                    ),
-                                    if (field.hasError)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                            left: 16, top: 4),
-                                        child: Text(
-                                          field.errorText!,
-                                          style: theme.textTheme.labelSmall
-                                              ?.copyWith(
-                                            color: theme.colorScheme.error,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            )
-                          else
-                            // Otherwise render a normal TextFormField matching
-                            // the style of the other fields in the form.
-                            TextFormField(
-                              controller:
-                                  _metadataControllers[metadataField.key]
-                                      as TextEditingController,
-                              textInputAction:
-                                  widget.metadataFields!.last == metadataField
-                                      ? TextInputAction.done
-                                      : TextInputAction.next,
-                              decoration: InputDecoration(
-                                label: Text(metadataField.label),
-                                prefixIcon: metadataField.prefixIcon,
-                              ),
-                              validator: metadataField.validator,
-                              onFieldSubmitted: (_) {
-                                if (metadataField !=
-                                    widget.metadataFields!.last) {
-                                  FocusScope.of(context).nextFocus();
-                                } else {
-                                  _signInSignUp(localization);
-                                }
-                              },
-                            ),
-                          spacer(16),
-                        ])
-                    .expand((element) => element),
-              ElevatedButton(
-                onPressed: () => _signInSignUp(localization),
-                child: (_isLoading)
-                    ? SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          strokeWidth: 1.5,
-                        ),
-                      )
-                    : Text(_isSigningIn
-                        ? localization.signIn
-                        : localization.signUp),
-              ),
+              if (_thereAreMetadataFields && _isSigningUp)
+                for (final metadataField in widget.metadataFields!)
+                  // Render a Checkbox that displays an error message
+                  // beneath it if the field is required and the user
+                  // hasn't checked it when submitting the form.
+                  if (metadataField is BooleanMetaDataField)
+                    _booleanMetaDataFormField(metadataField)
+                  else
+                    // Otherwise render a normal TextFormField matching
+                    // the style of the other fields in the form.
+                    _textMetaDataFormField(metadataField),
               spacer(16),
-              if (_isSigningIn)
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isRecoveringPassword = true;
-                    });
-                    widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
-                  },
-                  child: Text(localization.forgotPassword),
-                ),
-              TextButton(
-                key: const ValueKey('toggleSignInButton'),
-                onPressed: () {
-                  setState(() {
-                    _isRecoveringPassword = false;
-                    _isSigningIn = !_isSigningIn;
-                  });
-                  widget.onToggleSignIn?.call(_isSigningIn);
-                  widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
-                },
-                child: Text(_isSigningIn
-                    ? localization.dontHaveAccount
-                    : localization.haveAccount),
-              ),
+
+              // This is to start the sign-in or sign-up action
+              _signInSignUpButton(),
+              spacer(16),
+
+              // Show the password recovery button if the user is signing in.
+              if (_isSigningIn) _forgotPasswordButton(),
+              // A button to toggle between sign-in and sign-up
+              _signInSignUpToggle(),
             ],
 
             // Show the password recovery form if the user is recovering their password.
             if (_isSigningIn && _isRecoveringPassword) ...[
               spacer(16),
+              // Show just the email or phone field and the button to send the recovery email
               if (!_isEnteringOtp)
-                ElevatedButton(
-                  onPressed: () => _passwordRecovery(localization),
-                  child: _selectedIdentity == SupaPasswordIdentity.email
-                      ? Text(localization.sendPasswordResetEmail)
-                      : Text(localization.sendPasswordResetPhone),
-                )
+                _sendPasswordRecoveryButton()
               else ...[
-                TextFormField(
-                  controller: _otpController,
-                  decoration: InputDecoration(
-                    label: Text(localization.enterOtpCode),
-                    prefixIcon: widget.prefixIconOtp,
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
+                // Else show the OTP field and the button to change the password
+                _otpFormField(),
                 spacer(16),
-                TextFormField(
-                  controller: _newPasswordController,
-                  decoration: InputDecoration(
-                    label: Text(localization.enterNewPassword),
-                    prefixIcon: widget.prefixIconPassword,
-                  ),
-                  obscureText: true,
-                  validator: widget.passwordValidator ??
-                      (value) {
-                        if (value == null ||
-                            value.isEmpty ||
-                            value.length < 6) {
-                          return localization.passwordLengthError;
-                        }
-                        return null;
-                      },
-                ),
+                _newPasswordFormField(),
                 spacer(16),
-                TextFormField(
-                  controller: _confirmNewPasswordController,
-                  decoration: InputDecoration(
-                    label: Text(localization.confirmPassword),
-                    prefixIcon: widget.prefixIconPassword,
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value?.trim() != _resolveNewPassword()) {
-                      return localization.confirmPasswordError;
-                    }
-                    return null;
-                  },
-                ),
+                _confirmNewPasswordFormField(),
                 spacer(16),
-                ElevatedButton(
-                  onPressed: () => _verifyOtpAndResetPassword(localization),
-                  child: Text(localization.changePassword),
-                ),
+                _changePasswordButton(),
               ],
               spacer(16),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _isRecoveringPassword = false;
-                    _isEnteringOtp = false;
-                  });
-                },
-                child: Text(localization.backToSignIn),
-              ),
+              _backToSignInButton(),
             ],
           ],
         ),
@@ -528,7 +288,338 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     );
   }
 
-  void _signInSignUp(SupabaseAuthUILocalizations localization) async {
+  /// A button to switch between email and phone sign-in/sign-up
+  Widget _identitySwitchButton() {
+    final identityMap = {
+      SupaPasswordIdentity.email: _localization.email,
+      SupaPasswordIdentity.phone: _localization.phone,
+    };
+
+    return SegmentedButton<SupaPasswordIdentity>(
+      segments: [
+        for (final identity in widget.identities)
+          ButtonSegment(
+            value: identity,
+            label: Text(identityMap[identity]!),
+          ),
+      ],
+      selected: {_selectedIdentity},
+      onSelectionChanged: (identities) {
+        setState(() {
+          _selectedIdentity = identities.first;
+          _isEnteringOtp = false;
+          _isRecoveringPassword = false;
+        });
+      },
+    );
+  }
+
+  /// The email input field, used for sign-in and sign-up.
+  Widget _emailFormField() {
+    return TextFormField(
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      autofillHints: const [AutofillHints.email],
+      autofocus: true,
+      focusNode: _identityFocusNode,
+      enabled: !_isEnteringOtp,
+      textInputAction:
+          _isRecoveringPassword ? TextInputAction.done : TextInputAction.next,
+      validator: (value) {
+        if (value == null ||
+            value.isEmpty ||
+            !EmailValidator.validate(_emailController.text)) {
+          return _localization.validEmailError;
+        }
+        return null;
+      },
+      decoration: InputDecoration(
+        prefixIcon: widget.prefixIconEmail,
+        label: Text(_localization.enterEmail),
+      ),
+      onFieldSubmitted: (_) {
+        if (_isRecoveringPassword) {
+          _passwordRecovery();
+        }
+      },
+    );
+  }
+
+  /// The phone input field
+  Widget _phoneFormField() {
+    return PhoneFormField(
+      controller: _phoneController,
+      autofillHints: const [AutofillHints.telephoneNumber],
+      autofocus: true,
+      focusNode: _identityFocusNode,
+      enabled: !_isEnteringOtp,
+      textInputAction:
+          _isRecoveringPassword ? TextInputAction.done : TextInputAction.next,
+      validator: (value) {
+        if (value == null || !value.isValid()) {
+          return _localization.validPhoneNumberError;
+        }
+        return null;
+      },
+      decoration: InputDecoration(
+        label: Text(_localization.enterPhoneNumber),
+      ),
+    );
+  }
+
+  /// The password or new password input field, depending on the context
+  Widget _passwordFormField() {
+    return TextFormField(
+      autofillHints:
+          _isSigningIn ? [AutofillHints.password] : [AutofillHints.newPassword],
+      textInputAction: widget.metadataFields != null && !_isSigningIn
+          ? TextInputAction.next
+          : TextInputAction.done,
+      validator: _passwordValidator(),
+      decoration: InputDecoration(
+        prefixIcon: widget.prefixIconPassword,
+        label: Text(_localization.enterPassword),
+      ),
+      obscureText: true,
+      controller: _passwordController,
+      onFieldSubmitted: (_) {
+        if (widget.metadataFields == null || _isSigningIn) {
+          _signInSignUp();
+        }
+      },
+    );
+  }
+
+  /// The confirm password input field for sign-up
+  Widget _confirmPasswordFormField() {
+    return TextFormField(
+      controller: _confirmPasswordController,
+      decoration: InputDecoration(
+        prefixIcon: widget.prefixIconPassword,
+        label: Text(_localization.confirmPassword),
+      ),
+      obscureText: true,
+      validator: (value) {
+        if (value != _passwordController.text) {
+          return _localization.confirmPasswordError;
+        }
+        return null;
+      },
+    );
+  }
+
+  /// A widget to display boolean metadata fields (checkboxes)
+  Widget _booleanMetaDataFormField(BooleanMetaDataField metadataField) {
+    final theme = Theme.of(context);
+
+    // TODO: introduce a dedicated widget for metadata fields
+    return FormField<bool>(
+      validator: metadataField.isRequired
+          ? (bool? value) {
+              if (value != true) {
+                return _localization.requiredFieldError;
+              }
+              return null;
+            }
+          : null,
+      builder: (FormFieldState<bool> field) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CheckboxListTile(
+              title: metadataField.getLabelWidget(context),
+              value: _metadataControllers[metadataField.key] as bool,
+              onChanged: (bool? value) {
+                setState(() {
+                  _metadataControllers[metadataField.key] = value ?? false;
+                });
+                field.didChange(value);
+              },
+              checkboxSemanticLabel: metadataField.checkboxSemanticLabel,
+              controlAffinity: metadataField.checkboxPosition,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+              isError: field.hasError,
+            ),
+            if (field.hasError)
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 4),
+                child: Text(
+                  field.errorText!,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// A widget to display plain text metadata fields
+  Widget _textMetaDataFormField(MetaDataField metadataField) {
+    final isLast = widget.metadataFields!.last == metadataField;
+
+    return TextFormField(
+      controller:
+          _metadataControllers[metadataField.key] as TextEditingController,
+      textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+      decoration: InputDecoration(
+        label: Text(metadataField.label),
+        prefixIcon: metadataField.prefixIcon,
+      ),
+      validator: metadataField.validator,
+      onFieldSubmitted: (_) {
+        if (!isLast) {
+          FocusScope.of(context).nextFocus();
+        } else {
+          _signInSignUp();
+        }
+      },
+    );
+  }
+
+  /// A button to sign in or sign up
+  Widget _signInSignUpButton() {
+    return ElevatedButton(
+      onPressed: () => _signInSignUp(),
+      child: (_isLoading)
+          ? SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.onPrimary,
+                strokeWidth: 1.5,
+              ),
+            )
+          : Text(_isSigningIn ? _localization.signIn : _localization.signUp),
+    );
+  }
+
+  /// Button to switch to password recovery
+  Widget _forgotPasswordButton() {
+    return TextButton(
+      onPressed: () {
+        setState(() {
+          _isRecoveringPassword = true;
+        });
+        widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
+      },
+      child: Text(_localization.forgotPassword),
+    );
+  }
+
+  /// A button to toggle between sign-in and sign-up
+  Widget _signInSignUpToggle() {
+    return TextButton(
+      key: const ValueKey('toggleSignInButton'),
+      onPressed: () {
+        setState(() {
+          _isRecoveringPassword = false;
+          _isSigningIn = !_isSigningIn;
+        });
+        widget.onToggleSignIn?.call(_isSigningIn);
+        widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
+      },
+      child: Text(
+        _isSigningIn
+            ? _localization.dontHaveAccount
+            : _localization.haveAccount,
+      ),
+    );
+  }
+
+  /// A button to send the password recovery email or OTP code
+  Widget _sendPasswordRecoveryButton() {
+    return ElevatedButton(
+      onPressed: () => _passwordRecovery(),
+      child: _isUsingEmail
+          ? Text(_localization.sendPasswordResetEmail)
+          : Text(_localization.sendPasswordResetPhone),
+    );
+  }
+
+  /// The OTP input field
+  Widget _otpFormField() {
+    return TextFormField(
+      controller: _otpController,
+      autofillHints: const [AutofillHints.oneTimeCode],
+      decoration: InputDecoration(
+        prefixIcon: widget.prefixIconOtp,
+        label: Text(_localization.enterOtpCode),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return _localization.otpCodeError;
+        }
+        return null;
+      },
+    );
+  }
+
+  /// The new password input field
+  Widget _newPasswordFormField() {
+    return TextFormField(
+      controller: _newPasswordController,
+      decoration: InputDecoration(
+        label: Text(_localization.enterNewPassword),
+        prefixIcon: widget.prefixIconPassword,
+      ),
+      obscureText: true,
+      validator: _passwordValidator(),
+    );
+  }
+
+  /// The confirm new password input field
+  Widget _confirmNewPasswordFormField() {
+    return TextFormField(
+      controller: _confirmNewPasswordController,
+      decoration: InputDecoration(
+        label: Text(_localization.confirmPassword),
+        prefixIcon: widget.prefixIconPassword,
+      ),
+      obscureText: true,
+      validator: (value) {
+        if (value?.trim() != _resolveNewPassword()) {
+          return _localization.confirmPasswordError;
+        }
+        return null;
+      },
+    );
+  }
+
+  /// A button to change the password after verifying the OTP code
+  Widget _changePasswordButton() {
+    return ElevatedButton(
+      onPressed: () => _verifyOtpAndResetPassword(),
+      child: _isLoading
+          ? SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.onPrimary,
+                strokeWidth: 1.5,
+              ),
+            )
+          : Text(_localization.changePassword),
+    );
+  }
+
+  /// A button to go back to sign-in
+  Widget _backToSignInButton() {
+    return TextButton(
+      onPressed: () {
+        setState(() {
+          _isRecoveringPassword = false;
+          _isEnteringOtp = false;
+        });
+      },
+      child: Text(_localization.backToSignIn),
+    );
+  }
+
+  /// Perform the sign-in or sign-up action
+  Future<void> _signInSignUp() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -582,7 +673,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       _identityFocusNode.requestFocus();
     } catch (error) {
       if (widget.onError == null && mounted) {
-        context.showErrorSnackBar('${localization.unexpectedError}: $error');
+        context.showErrorSnackBar('${_localization.unexpectedError}: $error');
       } else {
         widget.onError?.call(error);
       }
@@ -595,7 +686,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     }
   }
 
-  void _passwordRecovery(SupabaseAuthUILocalizations localization) async {
+  Future<void> _passwordRecovery() async {
     try {
       if (!_formKey.currentState!.validate()) {
         // Focus on identity field if validation fails
@@ -617,13 +708,13 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         );
         widget.onPasswordResetEmailSent?.call();
         if (!mounted) return;
-        context.showSnackBar(localization.passwordResetSentEmail);
+        context.showSnackBar(_localization.passwordResetSentEmail);
       } else {
         await supabase.auth.signInWithOtp(
           phone: _resolvePhone(),
         );
         if (!mounted) return;
-        context.showSnackBar(localization.passwordResetSentPhone);
+        context.showSnackBar(_localization.passwordResetSentPhone);
       }
 
       // Always show the OTP field after sending the email or OTP code
@@ -644,8 +735,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   }
 
   /// First verify the OTP code and then reset the user's password.
-  void _verifyOtpAndResetPassword(
-      SupabaseAuthUILocalizations localization) async {
+  Future<void> _verifyOtpAndResetPassword() async {
     try {
       if (!_formKey.currentState!.validate()) return;
 
@@ -653,7 +743,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         _isLoading = true;
       });
 
-      final response = await _verifyOtp(localization);
+      final response = await _verifyOtp();
 
       if (response == null) return;
 
@@ -662,7 +752,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       );
 
       if (!mounted) return;
-      context.showSnackBar(localization.passwordChangedSuccess);
+      context.showSnackBar(_localization.passwordChangedSuccess);
 
       setState(() {
         _isRecoveringPassword = false;
@@ -681,8 +771,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
 
   /// Verify the OTP code sent to the user's email or phone,
   /// depending on the selected identity.
-  Future<AuthResponse?> _verifyOtp(
-      SupabaseAuthUILocalizations localization) async {
+  Future<AuthResponse?> _verifyOtp() async {
     try {
       return supabase.auth.verifyOTP(
         // TODO: type can be other values depending on the use case...
@@ -694,28 +783,37 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     } on AuthException catch (error) {
       if (error.code == 'otp_expired') {
         if (!mounted) return null;
-        context.showErrorSnackBar(localization.otpCodeError);
+        context.showErrorSnackBar(_localization.otpCodeError);
         return null;
       } else if (error.code == 'otp_disabled') {
         if (!mounted) return null;
-        context.showErrorSnackBar(localization.otpDisabledError);
+        context.showErrorSnackBar(_localization.otpDisabledError);
         return null;
       }
       rethrow;
     }
   }
 
+  /// A reusable validator for the password and new password fields
+  FormFieldValidator<String> _passwordValidator() {
+    return widget.passwordValidator ??
+        (value) {
+          if (value == null || value.isEmpty || value.length < 6) {
+            return _localization.passwordLengthError;
+          }
+          return null;
+        };
+  }
+
   /// Resolve the email that we will send during sign-up,
   /// or null if the user is signing up with phone.
-  String? _resolveEmail() => _selectedIdentity == SupaPasswordIdentity.email
-      ? _emailController.text.trim()
-      : null;
+  String? _resolveEmail() =>
+      _isUsingEmail ? _emailController.text.trim() : null;
 
   /// Resolve the phone number that we will send during sign-up,
   /// or null if the user is signing up with email.
-  String? _resolvePhone() => _selectedIdentity == SupaPasswordIdentity.phone
-      ? _phoneController.value.international
-      : null;
+  String? _resolvePhone() =>
+      _isUsingPhone ? _phoneController.value.international : null;
 
   /// Resolve the password that we will send during sign-up
   String _resolvePassword() => _passwordController.text.trim();
@@ -724,9 +822,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   String _resolveNewPassword() => _newPasswordController.text.trim();
 
   /// Resolve the OTP type to distinguish between SMS and recovery OTP
-  OtpType _resolveOtpType() => _selectedIdentity == SupaPasswordIdentity.phone
-      ? OtpType.sms
-      : OtpType.recovery;
+  OtpType _resolveOtpType() => _isUsingPhone ? OtpType.sms : OtpType.recovery;
 
   /// Resolve the OTP that we will send during sign-up
   String _resolveOtp() => _otpController.text.trim();
