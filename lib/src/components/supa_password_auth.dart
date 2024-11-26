@@ -2,6 +2,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_form_field/phone_form_field.dart';
 import 'package:supabase_auth_ui/localization/intl/messages.dart';
+import 'package:supabase_auth_ui/src/components/checkbox_form_field.dart';
 import 'package:supabase_auth_ui/src/utils/constants.dart';
 import 'package:supabase_auth_ui/src/utils/metadata.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -190,7 +191,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     _metadataControllers = {
       for (final metadataField in widget.metadataFields ?? [])
         metadataField.key: metadataField is BooleanMetaDataField
-            ? metadataField.value
+            ? CheckboxController(initialValue: metadataField.value)
             : TextEditingController(),
     };
   }
@@ -410,10 +411,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
 
   /// A widget to display boolean metadata fields (checkboxes)
   Widget _booleanMetaDataFormField(BooleanMetaDataField metadataField) {
-    final theme = Theme.of(context);
-
-    // TODO: introduce a dedicated widget for metadata fields
-    return FormField<bool>(
+    return CheckboxFormField(
       validator: metadataField.isRequired
           ? (bool? value) {
               if (value != true) {
@@ -422,37 +420,10 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
               return null;
             }
           : null,
-      builder: (FormFieldState<bool> field) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CheckboxListTile(
-              title: metadataField.getLabelWidget(context),
-              value: _metadataControllers[metadataField.key] as bool,
-              onChanged: (bool? value) {
-                setState(() {
-                  _metadataControllers[metadataField.key] = value ?? false;
-                });
-                field.didChange(value);
-              },
-              checkboxSemanticLabel: metadataField.checkboxSemanticLabel,
-              controlAffinity: metadataField.checkboxPosition,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-              isError: field.hasError,
-            ),
-            if (field.hasError)
-              Padding(
-                padding: const EdgeInsets.only(left: 16, top: 4),
-                child: Text(
-                  field.errorText!,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
+      controller: _metadataControllers[metadataField.key] as CheckboxController,
+      title: metadataField.getLabelWidget(context),
+      checkboxSemanticLabel: metadataField.checkboxSemanticLabel,
+      checkboxPosition: metadataField.checkboxPosition,
     );
   }
 
@@ -843,7 +814,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       for (final entry in _metadataControllers.entries)
         entry.key: entry.value is TextEditingController
             ? (entry.value as TextEditingController).text
-            : entry.value
+            : (entry.value as CheckboxController).value
     };
   }
 }

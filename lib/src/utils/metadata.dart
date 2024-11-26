@@ -137,5 +137,5 @@ class BooleanMetaDataField extends MetaDataField {
   }
 }
 
-// Used to allow storing both bool and TextEditingController in the same map.
+// Used to allow storing both CheckboxController and TextEditingController in the same map.
 typedef MetadataController = Object;
