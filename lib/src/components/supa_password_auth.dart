@@ -70,7 +70,7 @@ class SupaPasswordAuth extends StatefulWidget {
   final List<MetaDataField>? metadataFields;
 
   /// Additional properties for user_metadata on signup
-  final Map<String, dynamic>? extraMetadata;
+  final Map<String, dynamic> extraMetadata;
 
   /// Whether the form should display sign-in or sign-up initially
   final bool isInitiallySigningIn;
@@ -88,8 +88,12 @@ class SupaPasswordAuth extends StatefulWidget {
   /// Set of identities that the user can use to sign in
   final Set<SupaPasswordIdentity> identities;
 
+  /// Usually the [GoTrueClient] instance from the Supabase client,
+  /// but can be a custom instance for testing.
+  final GoTrueClient auth;
+
   /// {@macro supa_email_auth}
-  const SupaPasswordAuth({
+  SupaPasswordAuth({
     super.key,
     this.redirectTo,
     this.resetPasswordRedirectTo,
@@ -101,7 +105,7 @@ class SupaPasswordAuth extends StatefulWidget {
     this.onToggleSignIn,
     this.onToggleRecoverPassword,
     this.metadataFields,
-    this.extraMetadata,
+    this.extraMetadata = const {},
     this.isInitiallySigningIn = true,
     this.prefixIconEmail = const Icon(Icons.email),
     this.prefixIconPassword = const Icon(Icons.lock),
@@ -111,7 +115,8 @@ class SupaPasswordAuth extends StatefulWidget {
       SupaPasswordIdentity.email,
       SupaPasswordIdentity.phone
     },
-  });
+    GoTrueClient? goTrueClient,
+  }) : auth = goTrueClient ?? supabase.auth;
 
   @override
   State<SupaPasswordAuth> createState() => _SupaPasswordAuthState();
@@ -119,7 +124,7 @@ class SupaPasswordAuth extends StatefulWidget {
 
 class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   /// The localization instance
-  SupabaseAuthUILocalizations get _localization =>
+  SupabaseAuthUILocalizations get _l10n =>
       SupabaseAuthUILocalizations.of(context);
 
   /// The selected identity - late because it depends on the widget configuration
@@ -206,9 +211,9 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     _newPasswordController.dispose();
     _confirmNewPasswordController.dispose();
     for (final controller in _metadataControllers.values) {
-      if (controller is TextEditingController) {
-        controller.dispose();
-      }
+      // TODO: is there a better way to dispose of controllers?
+      if (controller is TextEditingController) controller.dispose();
+      if (controller is CheckboxController) controller.dispose();
     }
     super.dispose();
   }
@@ -292,8 +297,8 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   /// A button to switch between email and phone sign-in/sign-up
   Widget _identitySwitchButton() {
     final identityMap = {
-      SupaPasswordIdentity.email: _localization.email,
-      SupaPasswordIdentity.phone: _localization.phone,
+      SupaPasswordIdentity.email: _l10n.email,
+      SupaPasswordIdentity.phone: _l10n.phone,
     };
 
     return SegmentedButton<SupaPasswordIdentity>(
@@ -330,13 +335,13 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         if (value == null ||
             value.isEmpty ||
             !EmailValidator.validate(_emailController.text)) {
-          return _localization.validEmailError;
+          return _l10n.validEmailError;
         }
         return null;
       },
       decoration: InputDecoration(
         prefixIcon: widget.prefixIconEmail,
-        label: Text(_localization.enterEmail),
+        label: Text(_l10n.enterEmail),
       ),
       onFieldSubmitted: (_) {
         if (_isRecoveringPassword) {
@@ -358,12 +363,12 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           _isRecoveringPassword ? TextInputAction.done : TextInputAction.next,
       validator: (value) {
         if (value == null || !value.isValid()) {
-          return _localization.validPhoneNumberError;
+          return _l10n.validPhoneNumberError;
         }
         return null;
       },
       decoration: InputDecoration(
-        label: Text(_localization.enterPhoneNumber),
+        label: Text(_l10n.enterPhoneNumber),
       ),
     );
   }
@@ -379,7 +384,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       validator: _passwordValidator(),
       decoration: InputDecoration(
         prefixIcon: widget.prefixIconPassword,
-        label: Text(_localization.enterPassword),
+        label: Text(_l10n.enterPassword),
       ),
       obscureText: true,
       controller: _passwordController,
@@ -397,12 +402,12 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       controller: _confirmPasswordController,
       decoration: InputDecoration(
         prefixIcon: widget.prefixIconPassword,
-        label: Text(_localization.confirmPassword),
+        label: Text(_l10n.confirmPassword),
       ),
       obscureText: true,
       validator: (value) {
         if (value != _passwordController.text) {
-          return _localization.confirmPasswordError;
+          return _l10n.confirmPasswordError;
         }
         return null;
       },
@@ -415,7 +420,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       validator: metadataField.isRequired
           ? (bool? value) {
               if (value != true) {
-                return _localization.requiredFieldError;
+                return _l10n.requiredFieldError;
               }
               return null;
             }
@@ -463,7 +468,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
                 strokeWidth: 1.5,
               ),
             )
-          : Text(_isSigningIn ? _localization.signIn : _localization.signUp),
+          : Text(_isSigningIn ? _l10n.signIn : _l10n.signUp),
     );
   }
 
@@ -476,7 +481,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         });
         widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
       },
-      child: Text(_localization.forgotPassword),
+      child: Text(_l10n.forgotPassword),
     );
   }
 
@@ -493,9 +498,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
       },
       child: Text(
-        _isSigningIn
-            ? _localization.dontHaveAccount
-            : _localization.haveAccount,
+        _isSigningIn ? _l10n.dontHaveAccount : _l10n.haveAccount,
       ),
     );
   }
@@ -505,8 +508,8 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return ElevatedButton(
       onPressed: () => _passwordRecovery(),
       child: _isUsingEmail
-          ? Text(_localization.sendPasswordResetEmail)
-          : Text(_localization.sendPasswordResetPhone),
+          ? Text(_l10n.sendPasswordResetEmail)
+          : Text(_l10n.sendPasswordResetPhone),
     );
   }
 
@@ -517,11 +520,11 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       autofillHints: const [AutofillHints.oneTimeCode],
       decoration: InputDecoration(
         prefixIcon: widget.prefixIconOtp,
-        label: Text(_localization.enterOtpCode),
+        label: Text(_l10n.enterOtpCode),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return _localization.otpCodeError;
+          return _l10n.otpCodeError;
         }
         return null;
       },
@@ -533,7 +536,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return TextFormField(
       controller: _newPasswordController,
       decoration: InputDecoration(
-        label: Text(_localization.enterNewPassword),
+        label: Text(_l10n.enterNewPassword),
         prefixIcon: widget.prefixIconPassword,
       ),
       obscureText: true,
@@ -546,13 +549,13 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return TextFormField(
       controller: _confirmNewPasswordController,
       decoration: InputDecoration(
-        label: Text(_localization.confirmPassword),
+        label: Text(_l10n.confirmPassword),
         prefixIcon: widget.prefixIconPassword,
       ),
       obscureText: true,
       validator: (value) {
         if (value?.trim() != _resolveNewPassword()) {
-          return _localization.confirmPasswordError;
+          return _l10n.confirmPasswordError;
         }
         return null;
       },
@@ -572,7 +575,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
                 strokeWidth: 1.5,
               ),
             )
-          : Text(_localization.changePassword),
+          : Text(_l10n.changePassword),
     );
   }
 
@@ -585,7 +588,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           _isEnteringOtp = false;
         });
       },
-      child: Text(_localization.backToSignIn),
+      child: Text(_l10n.backToSignIn),
     );
   }
 
@@ -599,17 +602,17 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     });
     try {
       if (_isSigningIn) {
-        final response = await supabase.auth.signInWithPassword(
+        final response = await widget.auth.signInWithPassword(
           email: _resolveEmail(),
           phone: _resolvePhone(),
           password: _resolvePassword(),
         );
         widget.onSignInComplete.call(response);
       } else {
-        final user = supabase.auth.currentUser;
+        final user = widget.auth.currentUser;
         late final AuthResponse response;
         if (user?.isAnonymous == true) {
-          await supabase.auth.updateUser(
+          await widget.auth.updateUser(
             UserAttributes(
               email: _resolveEmail(),
               phone: _resolvePhone(),
@@ -618,10 +621,10 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
             ),
             emailRedirectTo: widget.redirectTo,
           );
-          final newSession = supabase.auth.currentSession;
+          final newSession = widget.auth.currentSession;
           response = AuthResponse(session: newSession);
         } else {
-          response = await supabase.auth.signUp(
+          response = await widget.auth.signUp(
             email: _resolveEmail(),
             phone: _resolvePhone(),
             password: _resolvePassword(),
@@ -644,7 +647,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       _identityFocusNode.requestFocus();
     } catch (error) {
       if (widget.onError == null && mounted) {
-        context.showErrorSnackBar('${_localization.unexpectedError}: $error');
+        context.showErrorSnackBar('${_l10n.unexpectedError}: $error');
       } else {
         widget.onError?.call(error);
       }
@@ -673,19 +676,19 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       // If the user is recovering their password with phone,
       // send an OTP code.
       if (_selectedIdentity == SupaPasswordIdentity.email) {
-        await supabase.auth.resetPasswordForEmail(
+        await widget.auth.resetPasswordForEmail(
           _resolveEmail()!,
           redirectTo: widget.resetPasswordRedirectTo ?? widget.redirectTo,
         );
         widget.onPasswordResetEmailSent?.call();
         if (!mounted) return;
-        context.showSnackBar(_localization.passwordResetSentEmail);
+        context.showSnackBar(_l10n.passwordResetSentEmail);
       } else {
-        await supabase.auth.signInWithOtp(
+        await widget.auth.signInWithOtp(
           phone: _resolvePhone(),
         );
         if (!mounted) return;
-        context.showSnackBar(_localization.passwordResetSentPhone);
+        context.showSnackBar(_l10n.passwordResetSentPhone);
       }
 
       // Always show the OTP field after sending the email or OTP code
@@ -718,12 +721,12 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
 
       if (response == null) return;
 
-      await supabase.auth.updateUser(
+      await widget.auth.updateUser(
         UserAttributes(password: _resolveNewPassword()),
       );
 
       if (!mounted) return;
-      context.showSnackBar(_localization.passwordChangedSuccess);
+      context.showSnackBar(_l10n.passwordChangedSuccess);
 
       setState(() {
         _isRecoveringPassword = false;
@@ -744,7 +747,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   /// depending on the selected identity.
   Future<AuthResponse?> _verifyOtp() async {
     try {
-      return supabase.auth.verifyOTP(
+      return widget.auth.verifyOTP(
         // TODO: type can be other values depending on the use case...
         type: _resolveOtpType(),
         token: _resolveOtp(),
@@ -754,11 +757,11 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     } on AuthException catch (error) {
       if (error.code == 'otp_expired') {
         if (!mounted) return null;
-        context.showErrorSnackBar(_localization.otpCodeError);
+        context.showErrorSnackBar(_l10n.otpCodeError);
         return null;
       } else if (error.code == 'otp_disabled') {
         if (!mounted) return null;
-        context.showErrorSnackBar(_localization.otpDisabledError);
+        context.showErrorSnackBar(_l10n.otpDisabledError);
         return null;
       }
       rethrow;
@@ -770,7 +773,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return widget.passwordValidator ??
         (value) {
           if (value == null || value.isEmpty || value.length < 6) {
-            return _localization.passwordLengthError;
+            return _l10n.passwordLengthError;
           }
           return null;
         };
@@ -802,19 +805,18 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   ///
   /// In case both MetadataFields and extraMetadata have the same
   /// key in their map, the MetadataFields (form fields) win
-  Map<String, dynamic> _resolveData() {
-    final extra = widget.extraMetadata ?? <String, dynamic>{};
-    extra.addAll(_resolveMetadataFieldsData());
-    return extra;
-  }
-
-  /// Resolve the user_metadata coming from the metadataFields
-  Map<String, dynamic> _resolveMetadataFieldsData() {
-    return {
+  ///
+  /// If there are no metadata fields, return null
+  Map<String, dynamic>? _resolveData() {
+    final extra = {
+      ...widget.extraMetadata,
       for (final entry in _metadataControllers.entries)
         entry.key: entry.value is TextEditingController
             ? (entry.value as TextEditingController).text
             : (entry.value as CheckboxController).value
     };
+
+    if (extra.isEmpty) return null;
+    return extra;
   }
 }
