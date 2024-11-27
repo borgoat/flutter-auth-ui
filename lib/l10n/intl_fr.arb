@@ -2,6 +2,7 @@
   "backToSignIn": "Retour à la connexion",
   "changePassword": "Changer le mot de passe",
   "checkYourEmail": "Vérifiez votre boîte de réception!",
+  "clickOnLinkOrEnterOtp": "Cliquez sur le lien dans l'email ou entrez le code OTP reçu",
   "confirmPassword": "Confirmer le mot de passe",
   "confirmPasswordError": "Les mots de passe ne correspondent pas",
   "continueWithMagicLink": "Continuer avec le lien magique",
@@ -34,5 +35,6 @@
   "updatePassword": "Mettre à jour le mot de passe",
   "validEmailError": "Veuillez entrer une adresse email valide",
   "validPhoneNumberError": "Veuillez entrer un numéro de téléphone valide",
+  "verifyOtpCode": "Vérifier le code",
   "verifyPhone": "Vérifier le téléphone"
 }

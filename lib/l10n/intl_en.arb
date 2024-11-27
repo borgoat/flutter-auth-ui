@@ -2,6 +2,7 @@
   "backToSignIn": "Back to sign in",
   "changePassword": "Change password",
   "checkYourEmail": "Check your email inbox!",
+  "clickOnLinkOrEnterOtp": "Click on the link in the email or enter the OTP code you received",
   "confirmPassword": "Confirm password",
   "confirmPasswordError": "Passwords do not match",
   "continueWithMagicLink": "Continue with magic Link",
@@ -34,5 +35,6 @@
   "updatePassword": "Update Password",
   "validEmailError": "Please enter a valid email address",
   "validPhoneNumberError": "Please enter a valid phone number",
+  "verifyOtpCode": "Verify code",
   "verifyPhone": "Verify phone"
 }

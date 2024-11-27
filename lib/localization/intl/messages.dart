@@ -123,6 +123,12 @@ abstract class SupabaseAuthUILocalizations {
   /// **'Check your email inbox!'**
   String get checkYourEmail;
 
+  /// No description provided for @clickOnLinkOrEnterOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click on the link in the email or enter the OTP code you received'**
+  String get clickOnLinkOrEnterOtp;
+
   /// No description provided for @confirmPassword.
   ///
   /// In en, this message translates to:
@@ -314,6 +320,12 @@ abstract class SupabaseAuthUILocalizations {
   /// In en, this message translates to:
   /// **'Please enter a valid phone number'**
   String get validPhoneNumberError;
+
+  /// No description provided for @verifyOtpCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify code'**
+  String get verifyOtpCode;
 
   /// No description provided for @verifyPhone.
   ///

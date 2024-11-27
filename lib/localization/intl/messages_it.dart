@@ -16,6 +16,10 @@ class SupabaseAuthUILocalizationsIt extends SupabaseAuthUILocalizations {
   String get checkYourEmail => 'Controlla la tua casella di posta!';
 
   @override
+  String get clickOnLinkOrEnterOtp =>
+      'Fai clic sul link nell\'email o inserisci il codice OTP ricevuto';
+
+  @override
   String get confirmPassword => 'Conferma la password';
 
   @override
@@ -113,6 +117,9 @@ class SupabaseAuthUILocalizationsIt extends SupabaseAuthUILocalizations {
 
   @override
   String get validPhoneNumberError => 'Inserisci un numero di telefono valido';
+
+  @override
+  String get verifyOtpCode => 'Verifica il codice';
 
   @override
   String get verifyPhone => 'Verifica il telefono';

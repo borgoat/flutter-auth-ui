@@ -10,6 +10,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Users can associate a password with their identity using their email address or a phone number.
 enum SupaPasswordIdentity { email, phone }
 
+/// Different actions that can be performed with the auth form,
+/// such as signing in, signing up, or recovering a password.
+/// This is used to determine which fields to show and which actions to take.
+enum _AuthAction { signIn, signUp, passwordRecovery, verification }
+
 /// {@template supa_password_auth}
 /// UI component to create signup and signin forms with
 /// * email and password
@@ -130,15 +135,13 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   /// The selected identity - late because it depends on the widget configuration
   late SupaPasswordIdentity _selectedIdentity;
 
-  /// True when the user is signing in, false when signing up;
-  /// late because it depends on the widget configuration
-  late bool _isSigningIn;
+  /// What the user is currently doing in the sign in/sign up form,
+  /// such as signing in, signing up, or recovering a password.
+  /// late because it initially depends on the widget configuration
+  late _AuthAction _currentAuthAction;
 
   /// True when waiting for a response from the server
   bool _isLoading = false;
-
-  /// The user has pressed forgot password button
-  bool _isRecoveringPassword = false;
 
   /// Whether the user is entering OTP code
   bool _isEnteringOtp = false;
@@ -152,8 +155,19 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   /// Whether the user is using phone to sign in instead of email
   bool get _isUsingPhone => _selectedIdentity == SupaPasswordIdentity.phone;
 
+  /// Whether the user is signing in
+  bool get _isSigningIn => _currentAuthAction == _AuthAction.signIn;
+
   /// Whether the user is signing up
-  bool get _isSigningUp => !_isSigningIn;
+  bool get _isSigningUp => _currentAuthAction == _AuthAction.signUp;
+
+  /// Whether the user is recovering their password
+  bool get _isRecoveringPassword =>
+      _currentAuthAction == _AuthAction.passwordRecovery;
+
+  /// Whether the user reached the verification step,
+  /// and need to enter a OTP or click a deeplink they received via email
+  bool get _isVerifying => _currentAuthAction == _AuthAction.verification;
 
   /// Whether there are metadata fields to show
   bool get _thereAreMetadataFields =>
@@ -191,8 +205,13 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   @override
   void initState() {
     super.initState();
+    if (widget.isInitiallySigningIn) {
+      _currentAuthAction = _AuthAction.signIn;
+    } else {
+      _currentAuthAction = _AuthAction.signUp;
+    }
+
     _selectedIdentity = widget.identities.first;
-    _isSigningIn = widget.isInitiallySigningIn;
     _metadataControllers = {
       for (final metadataField in widget.metadataFields ?? [])
         metadataField.key: metadataField is BooleanMetaDataField
@@ -238,28 +257,35 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
             if (_isUsingEmail) _emailFormField() else _phoneFormField(),
 
             // Show the password fields if the user is signing in or signing up.
-            if (!_isRecoveringPassword) ...[
+            if (_isSigningIn || _isSigningUp) ...[
               spacer(16),
               _passwordFormField(),
-              if (widget.showConfirmPasswordField && _isSigningUp) ...[
-                spacer(16),
-                _confirmPasswordFormField(),
+
+              // When signing up, can also show the confirm password field.
+              if (_isSigningUp) ...[
+                if (widget.showConfirmPasswordField) ...[
+                  spacer(16),
+                  _confirmPasswordFormField(),
+                ],
+
+                // Add metadata fields if they are provided, only during sign up
+                if (_thereAreMetadataFields) ...[
+                  spacer(16),
+                  for (final metadataField in widget.metadataFields!)
+                    // Render a Checkbox that displays an error message
+                    // beneath it if the field is required and the user
+                    // hasn't checked it when submitting the form.
+                    if (metadataField is BooleanMetaDataField)
+                      _booleanMetaDataFormField(metadataField)
+                    else
+                      // Otherwise render a normal TextFormField matching
+                      // the style of the other fields in the form.
+                      _textMetaDataFormField(metadataField),
+                ]
               ],
-              spacer(16),
-              if (_thereAreMetadataFields && _isSigningUp)
-                for (final metadataField in widget.metadataFields!)
-                  // Render a Checkbox that displays an error message
-                  // beneath it if the field is required and the user
-                  // hasn't checked it when submitting the form.
-                  if (metadataField is BooleanMetaDataField)
-                    _booleanMetaDataFormField(metadataField)
-                  else
-                    // Otherwise render a normal TextFormField matching
-                    // the style of the other fields in the form.
-                    _textMetaDataFormField(metadataField),
-              spacer(16),
 
               // This is to start the sign-in or sign-up action
+              spacer(16),
               _signInSignUpButton(),
               spacer(16),
 
@@ -267,10 +293,10 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
               if (_isSigningIn) _forgotPasswordButton(),
               // A button to toggle between sign-in and sign-up
               _signInSignUpToggle(),
-            ],
+            ]
 
             // Show the password recovery form if the user is recovering their password.
-            if (_isSigningIn && _isRecoveringPassword) ...[
+            else if (_isRecoveringPassword) ...[
               spacer(16),
               // Show just the email or phone field and the button to send the recovery email
               if (!_isEnteringOtp)
@@ -287,6 +313,20 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
               ],
               spacer(16),
               _backToSignInButton(),
+            ] else if (_isVerifying) ...[
+              // If a verification is required, show the OTP field
+              // and the button to verify the OTP code.
+              spacer(16),
+              _otpFormField(),
+
+              // An explanation in case the user is signing up via email
+              if (_isUsingEmail) ...[
+                spacer(16),
+                Text(_l10n.clickOnLinkOrEnterOtp),
+              ],
+
+              spacer(16),
+              _verifyOtpButton(),
             ],
           ],
         ),
@@ -314,7 +354,6 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
         setState(() {
           _selectedIdentity = identities.first;
           _isEnteringOtp = false;
-          _isRecoveringPassword = false;
         });
       },
     );
@@ -459,16 +498,8 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   Widget _signInSignUpButton() {
     return ElevatedButton(
       onPressed: () => _signInSignUp(),
-      child: (_isLoading)
-          ? SizedBox(
-              height: 16,
-              width: 16,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.onPrimary,
-                strokeWidth: 1.5,
-              ),
-            )
-          : Text(_isSigningIn ? _l10n.signIn : _l10n.signUp),
+      child: _ifLoadingShowIndicator(
+          Text(_isSigningIn ? _l10n.signIn : _l10n.signUp)),
     );
   }
 
@@ -477,7 +508,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return TextButton(
       onPressed: () {
         setState(() {
-          _isRecoveringPassword = true;
+          _currentAuthAction = _AuthAction.passwordRecovery;
         });
         widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
       },
@@ -491,8 +522,11 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       key: const ValueKey('toggleSignInButton'),
       onPressed: () {
         setState(() {
-          _isRecoveringPassword = false;
-          _isSigningIn = !_isSigningIn;
+          if (_isSigningIn) {
+            _currentAuthAction = _AuthAction.signUp;
+          } else {
+            _currentAuthAction = _AuthAction.signIn;
+          }
         });
         widget.onToggleSignIn?.call(_isSigningIn);
         widget.onToggleRecoverPassword?.call(_isRecoveringPassword);
@@ -518,6 +552,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return TextFormField(
       controller: _otpController,
       autofillHints: const [AutofillHints.oneTimeCode],
+      keyboardType: TextInputType.number,
       decoration: InputDecoration(
         prefixIcon: widget.prefixIconOtp,
         label: Text(_l10n.enterOtpCode),
@@ -566,16 +601,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   Widget _changePasswordButton() {
     return ElevatedButton(
       onPressed: () => _verifyOtpAndResetPassword(),
-      child: _isLoading
-          ? SizedBox(
-              height: 16,
-              width: 16,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.onPrimary,
-                strokeWidth: 1.5,
-              ),
-            )
-          : Text(_l10n.changePassword),
+      child: _ifLoadingShowIndicator(Text(_l10n.changePassword)),
     );
   }
 
@@ -584,12 +610,34 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
     return TextButton(
       onPressed: () {
         setState(() {
-          _isRecoveringPassword = false;
+          _currentAuthAction = _AuthAction.signIn;
           _isEnteringOtp = false;
         });
       },
       child: Text(_l10n.backToSignIn),
     );
+  }
+
+  Widget _verifyOtpButton() {
+    return ElevatedButton(
+      onPressed: () => _verifyOtp(),
+      child: _ifLoadingShowIndicator(Text(_l10n.verifyOtpCode)),
+    );
+  }
+
+  /// Wrap [done] so that it shows a [CircularProgressIndicator]
+  /// when the widget is loading.
+  Widget _ifLoadingShowIndicator(Widget done) {
+    return _isLoading
+        ? SizedBox(
+            height: 16,
+            width: 16,
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.onPrimary,
+              strokeWidth: 1.5,
+            ),
+          )
+        : done;
   }
 
   /// Perform the sign-in or sign-up action
@@ -632,9 +680,13 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
             data: _resolveData(),
           );
 
-          // TODO: if verification is required, explain to the user
-          //       that they can either tap on the link in the email or
-          //       enter the OTP code sent to their email/phone.
+          // Verification is required, explain to the user
+          // that they can either tap on the link in the email or
+          // enter the OTP code sent to their email/phone.
+          if (response.user?.emailConfirmedAt == null ||
+              response.user?.phoneConfirmedAt == null) {
+            _currentAuthAction = _AuthAction.verification;
+          }
         }
         widget.onSignUpComplete.call(response);
       }
@@ -675,7 +727,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       // send a password reset email.
       // If the user is recovering their password with phone,
       // send an OTP code.
-      if (_selectedIdentity == SupaPasswordIdentity.email) {
+      if (_isUsingEmail) {
         await widget.auth.resetPasswordForEmail(
           _resolveEmail()!,
           redirectTo: widget.resetPasswordRedirectTo ?? widget.redirectTo,
@@ -729,7 +781,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
       context.showSnackBar(_l10n.passwordChangedSuccess);
 
       setState(() {
-        _isRecoveringPassword = false;
+        _currentAuthAction = _AuthAction.signIn;
         _isEnteringOtp = false;
       });
     } catch (error) {
@@ -796,7 +848,11 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
   String _resolveNewPassword() => _newPasswordController.text.trim();
 
   /// Resolve the OTP type to distinguish between SMS and recovery OTP
-  OtpType _resolveOtpType() => _isUsingPhone ? OtpType.sms : OtpType.recovery;
+  OtpType _resolveOtpType() => _isUsingPhone
+      ? OtpType.sms
+      : _isEnteringOtp
+          ? OtpType.recovery
+          : OtpType.email;
 
   /// Resolve the OTP that we will send during sign-up
   String _resolveOtp() => _otpController.text.trim();
