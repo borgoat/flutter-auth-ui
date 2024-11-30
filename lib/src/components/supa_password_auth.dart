@@ -49,12 +49,12 @@ class SupaPasswordAuth extends StatefulWidget {
   final String? Function(String?)? passwordValidator;
 
   /// Callback for the user to complete a sign in.
-  final void Function(AuthResponse response) onSignInComplete;
+  final void Function(AuthResponse response)? onSignInComplete;
 
   /// Callback for the user to complete a signUp.
   ///
   /// If email confirmation is turned on, the user is
-  final void Function(AuthResponse response) onSignUpComplete;
+  final void Function(AuthResponse response)? onSignUpComplete;
 
   /// Callback for sending the password reset email
   final void Function()? onPasswordResetEmailSent;
@@ -103,8 +103,8 @@ class SupaPasswordAuth extends StatefulWidget {
     this.redirectTo,
     this.resetPasswordRedirectTo,
     this.passwordValidator,
-    required this.onSignInComplete,
-    required this.onSignUpComplete,
+    this.onSignInComplete,
+    this.onSignUpComplete,
     this.onPasswordResetEmailSent,
     this.onError,
     this.onToggleSignIn,
@@ -655,7 +655,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           phone: _resolvePhone(),
           password: _resolvePassword(),
         );
-        widget.onSignInComplete.call(response);
+        widget.onSignInComplete?.call(response);
       } else {
         final user = widget.auth.currentUser;
         late final AuthResponse response;
@@ -671,6 +671,7 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           );
           final newSession = widget.auth.currentSession;
           response = AuthResponse(session: newSession);
+          widget.onSignUpComplete?.call(response);
         } else {
           response = await widget.auth.signUp(
             email: _resolveEmail(),
@@ -686,9 +687,10 @@ class _SupaPasswordAuthState extends State<SupaPasswordAuth> {
           if (response.user?.emailConfirmedAt == null ||
               response.user?.phoneConfirmedAt == null) {
             _currentAuthAction = _AuthAction.verification;
+          } else {
+            widget.onSignUpComplete?.call(response);
           }
         }
-        widget.onSignUpComplete.call(response);
       }
     } on AuthException catch (error) {
       if (widget.onError == null && mounted) {
