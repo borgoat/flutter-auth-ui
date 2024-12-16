@@ -218,11 +218,27 @@ class _SupaSocialsAuthState extends State<SupaSocialsAuth> {
           'Could not find ID Token from generated Apple sign in credential.');
     }
 
-    return supabase.auth.signInWithIdToken(
+    final authResponse = await supabase.auth.signInWithIdToken(
       provider: OAuthProvider.apple,
       idToken: idToken,
       nonce: rawNonce,
     );
+
+    // During the first sign up, the user's full name may be available,
+    // so we can use it to store in the user's profile.
+    final fullName = [
+      if (credential.givenName != null && credential.givenName!.isNotEmpty)
+        credential.givenName,
+      if (credential.familyName != null && credential.familyName!.isNotEmpty)
+        credential.familyName
+    ].join(' ');
+    if (fullName.isNotEmpty) {
+      await supabase.auth.updateUser(UserAttributes(data: {
+        'full_name': fullName,
+      }));
+    }
+
+    return authResponse;
   }
 
   @override
